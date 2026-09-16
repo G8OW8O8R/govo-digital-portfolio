@@ -30,7 +30,7 @@ export function seoHead(opts: {
   const enUrl = abs(enPath);
   const url = lang === "pl" ? plUrl : enUrl;
 
-  const ogImage = `${siteConfig.siteUrl}/og-image.png`;
+  const ogImage = `${siteConfig.siteUrl}/og-image.jpg`;
 
   return {
     meta: [
