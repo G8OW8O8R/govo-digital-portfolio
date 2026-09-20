@@ -407,20 +407,20 @@ export default function ProjectShowcase({
 
                   <Reveal delay={100} distance={28}>
                     <div
-                      className="relative mt-8 overflow-hidden rounded-[2rem] border border-white/40 bg-[#f4f0e8]/75 px-8 py-12 text-center backdrop-blur-xl md:px-14 md:py-16"
+                      className="relative z-10 mx-4 -mt-16 overflow-hidden rounded-[2rem] border border-white/25 bg-white/10 px-8 py-12 text-center backdrop-blur-2xl backdrop-saturate-150 md:mx-8 md:-mt-20 md:px-14 md:py-16"
                       style={{
                         boxShadow:
-                          "inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -14px 30px rgba(0,0,0,0.05), 0 24px 60px -16px rgba(0,0,0,0.45)",
+                          "inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -1px 1px rgba(0,0,0,0.2), inset 0 0 40px rgba(255,255,255,0.05), 0 24px 60px -16px rgba(0,0,0,0.65)",
                       }}
                     >
                       {/* Specular highlight sweep — the "liquid" part of liquid glass: a soft
-                          diagonal sheen sitting above the content, like light catching a lens. */}
+                          diagonal sheen sitting above the genuinely see-through blurred pane. */}
                       <div
                         aria-hidden
                         className="pointer-events-none absolute inset-0"
                         style={{
                           background:
-                            "linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.05) 32%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.25) 100%)",
+                            "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 55%, rgba(255,255,255,0.1) 100%)",
                         }}
                       />
                       {editing ? (
@@ -428,10 +428,10 @@ export default function ProjectShowcase({
                           value={form.blurb}
                           onChange={(e) => setForm((f) => ({ ...f, blurb: e.target.value }))}
                           rows={5}
-                          className="relative w-full resize-none rounded-xl border border-black/15 bg-white/70 p-4 text-center font-display text-xl font-semibold uppercase leading-snug tracking-tight text-[#232019] outline-none focus:border-black/40"
+                          className="relative w-full resize-none rounded-xl border border-white/25 bg-white/10 p-4 text-center font-display text-xl font-semibold uppercase leading-snug tracking-tight text-white outline-none backdrop-blur-md focus:border-white/50"
                         />
                       ) : (
-                        <p className="relative whitespace-pre-line font-display text-3xl font-semibold uppercase leading-[1.15] tracking-tight text-[#232019] md:text-[2.75rem]">
+                        <p className="relative whitespace-pre-line font-display text-3xl font-semibold uppercase leading-[1.15] tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.5)] md:text-[2.75rem]">
                           {active.blurb}
                         </p>
                       )}
