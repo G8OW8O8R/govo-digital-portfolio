@@ -427,13 +427,16 @@ export default function ProjectsPage() {
   const cards = t.projectCards;
   const overrides = projectOverrides as Record<
     string,
-    Partial<Record<"pl" | "en", { name?: string; subtitle?: string; blurb?: string; tags?: string[] }>>
+    Partial<Record<"pl" | "en", { name?: string; subtitle?: string; blurb?: string; tags?: string[] }>> & {
+      media?: { gallery?: string[]; video?: string };
+    }
   >;
 
   const showcaseItems: ShowcaseItem[] = ALL_PROJECTS.map((meta) => {
     const c = cards[meta.id];
     const panel = CASE_PANELS[meta.id];
     const override = overrides[meta.id]?.[lang];
+    const media = overrides[meta.id]?.media;
     return {
       id: meta.id,
       imageSrc: meta.imageSrc,
@@ -444,6 +447,8 @@ export default function ProjectsPage() {
       demoUrl: meta.demoUrl,
       isConcept: CONCEPT_IDS.has(meta.id),
       casePanel: panel ? (panel[lang] ?? panel.en) : undefined,
+      gallery: media?.gallery,
+      video: media?.video,
     };
   });
 

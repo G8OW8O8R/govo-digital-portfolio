@@ -1,15 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Loader2, Pencil, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react";
 
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import CaseStudyPanel, { type CaseData } from "@/components/CaseStudyPanel";
 import ProjectShowcase3D, { useSupports3DGallery } from "@/components/ProjectShowcase3D";
 import Reveal from "@/components/Reveal";
 import { supabase } from "@/integrations/supabase/client";
-import { saveProjectContent } from "@/lib/project-content.server";
+import { saveProjectContent, saveProjectGallery, uploadProjectImage } from "@/lib/project-content.server";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+
+function getVideoEmbedUrl(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return null;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 /** True only for a logged-in user with the `admin` role — reuses the same
  * auth/role system that already gates the /stats dashboard, so there's no
@@ -47,6 +64,8 @@ export type ShowcaseItem = {
   demoUrl: string;
   isConcept?: boolean;
   casePanel?: CaseData;
+  gallery?: readonly string[];
+  video?: string;
 };
 
 type Labels = {
@@ -169,6 +188,10 @@ export default function ProjectShowcase({
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<ShowcaseItem>>>({});
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const [galleryMsg, setGalleryMsg] = useState<string | null>(null);
+  const [videoInput, setVideoInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openAt = (i: number) => {
     const item = items[i];
@@ -201,10 +224,16 @@ export default function ProjectShowcase({
     scrollRef.current?.scrollTo({ top: 0 });
     setEditing(false);
     setSaveMsg(null);
+    setGalleryMsg(null);
   }, [activeIndex]);
 
   const activeRaw = activeIndex !== null ? items[activeIndex] : null;
   const active = activeRaw ? { ...activeRaw, ...localOverrides[activeRaw.id] } : null;
+
+  useEffect(() => {
+    setVideoInput(active?.video ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex]);
 
   const startEdit = () => {
     if (!active) return;
@@ -226,13 +255,67 @@ export default function ProjectShowcase({
         .filter(Boolean);
       const patch = { name: form.name.trim(), subtitle: form.subtitle.trim(), blurb: form.blurb.trim(), tags };
       await saveProjectContent({ data: { slug: active.id, lang, ...patch } });
-      setLocalOverrides((prev) => ({ ...prev, [active.id]: patch }));
+      setLocalOverrides((prev) => ({ ...prev, [active.id]: { ...prev[active.id], ...patch } }));
       setEditing(false);
       setSaveMsg("Zapisano — publicznie widoczne po zakończeniu wdrożenia (ok. 1–2 min).");
     } catch (err) {
       setSaveMsg(err instanceof Error ? err.message : "Nie udało się zapisać.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddImage = async (file: File) => {
+    if (!active) return;
+    if (file.size > 4.5 * 1024 * 1024) {
+      setGalleryMsg("Plik jest za duży (maks. ok. 4 MB).");
+      return;
+    }
+    setGalleryBusy(true);
+    setGalleryMsg(null);
+    try {
+      const contentBase64 = await fileToBase64(file);
+      const { url } = await uploadProjectImage({ data: { slug: active.id, mime: file.type, contentBase64 } });
+      const nextGallery = [...(active.gallery ?? []), url];
+      await saveProjectGallery({ data: { slug: active.id, gallery: nextGallery, video: active.video ?? "" } });
+      setLocalOverrides((prev) => ({ ...prev, [active.id]: { ...prev[active.id], gallery: nextGallery } }));
+      setGalleryMsg("Dodano zdjęcie — widoczne po zakończeniu wdrożenia (ok. 1–2 min).");
+    } catch (err) {
+      setGalleryMsg(err instanceof Error ? err.message : "Nie udało się dodać zdjęcia.");
+    } finally {
+      setGalleryBusy(false);
+    }
+  };
+
+  const handleRemoveImage = async (url: string) => {
+    if (!active) return;
+    setGalleryBusy(true);
+    setGalleryMsg(null);
+    try {
+      const nextGallery = (active.gallery ?? []).filter((g) => g !== url);
+      await saveProjectGallery({ data: { slug: active.id, gallery: nextGallery, video: active.video ?? "" } });
+      setLocalOverrides((prev) => ({ ...prev, [active.id]: { ...prev[active.id], gallery: nextGallery } }));
+      setGalleryMsg("Usunięto zdjęcie.");
+    } catch (err) {
+      setGalleryMsg(err instanceof Error ? err.message : "Nie udało się usunąć zdjęcia.");
+    } finally {
+      setGalleryBusy(false);
+    }
+  };
+
+  const handleSaveVideo = async () => {
+    if (!active) return;
+    setGalleryBusy(true);
+    setGalleryMsg(null);
+    try {
+      const video = videoInput.trim();
+      await saveProjectGallery({ data: { slug: active.id, gallery: [...(active.gallery ?? [])], video } });
+      setLocalOverrides((prev) => ({ ...prev, [active.id]: { ...prev[active.id], video } }));
+      setGalleryMsg("Zapisano wideo.");
+    } catch (err) {
+      setGalleryMsg(err instanceof Error ? err.message : "Nie udało się zapisać wideo.");
+    } finally {
+      setGalleryBusy(false);
     }
   };
 
@@ -309,24 +392,26 @@ export default function ProjectShowcase({
                     </Reveal>
                   )}
 
-                  <Reveal delay={170} distance={16}>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <a
-                        href={active.demoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() =>
-                          void trackEvent("demo_click", {
-                            projectSlug: active.id,
-                            metadata: { project_name: active.name, demo_url: active.demoUrl },
-                          })
-                        }
-                        title={labels.liveDemo}
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition hover:bg-primary hover:text-primary-foreground"
-                      >
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                        <span className="sr-only">{labels.liveDemo}</span>
-                      </a>
+                  <Reveal delay={150} distance={16}>
+                    <a
+                      href={active.demoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() =>
+                        void trackEvent("demo_click", {
+                          projectSlug: active.id,
+                          metadata: { project_name: active.name, demo_url: active.demoUrl },
+                        })
+                      }
+                      className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:shadow-glow"
+                    >
+                      {labels.liveDemo}
+                      <ArrowUpRight className="h-4 w-4" />
+                    </a>
+                  </Reveal>
+
+                  <Reveal delay={210} distance={16}>
+                    <div className="mt-6 flex flex-wrap items-center gap-1.5">
                       {editing ? (
                         <input
                           value={form.tags}
@@ -355,7 +440,7 @@ export default function ProjectShowcase({
                   </Reveal>
 
                   {isAdmin ? (
-                    <div className="mt-6 border-t border-border/50 pt-5">
+                    <div className="mt-8 border-t border-border/50 pt-6">
                       {editing ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <button
@@ -407,7 +492,7 @@ export default function ProjectShowcase({
 
                   <Reveal delay={100} distance={28}>
                     <div
-                      className="relative z-10 mx-4 -mt-16 overflow-hidden rounded-[2rem] border border-white/25 bg-white/10 px-8 py-12 text-center backdrop-blur-2xl backdrop-saturate-150 md:mx-8 md:-mt-20 md:px-14 md:py-16"
+                      className="relative z-10 mx-3 -mt-8 overflow-hidden rounded-2xl border border-white/25 bg-white/10 px-5 py-8 text-center backdrop-blur-2xl backdrop-saturate-150 sm:px-8 sm:py-10 md:mx-8 md:-mt-16 md:rounded-[2rem] md:px-14 md:py-16"
                       style={{
                         boxShadow:
                           "inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -1px 1px rgba(0,0,0,0.2), inset 0 0 40px rgba(255,255,255,0.05), 0 24px 60px -16px rgba(0,0,0,0.65)",
@@ -431,12 +516,105 @@ export default function ProjectShowcase({
                           className="relative w-full resize-none rounded-xl border border-white/25 bg-white/10 p-4 text-center font-display text-xl font-semibold uppercase leading-snug tracking-tight text-white outline-none backdrop-blur-md focus:border-white/50"
                         />
                       ) : (
-                        <p className="relative whitespace-pre-line font-display text-3xl font-semibold uppercase leading-[1.15] tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.5)] md:text-[2.75rem]">
+                        <p className="relative whitespace-pre-line font-display text-lg font-semibold uppercase leading-[1.2] tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.5)] sm:text-2xl md:text-3xl lg:text-[2.75rem]">
                           {active.blurb}
                         </p>
                       )}
                     </div>
                   </Reveal>
+
+                  {active.gallery?.length || active.video || isAdmin ? (
+                    <Reveal delay={90} distance={24}>
+                      <div className="mt-10">
+                        {active.gallery?.length ? (
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            {active.gallery.map((src) => (
+                              <div key={src} className="group relative overflow-hidden rounded-xl border border-border/50">
+                                <a href={src} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={src}
+                                    alt=""
+                                    className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
+                                    loading="lazy"
+                                  />
+                                </a>
+                                {isAdmin ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleRemoveImage(src)}
+                                    disabled={galleryBusy}
+                                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/80 disabled:opacity-40"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {active.video ? (
+                          <div className={cn("overflow-hidden rounded-2xl", active.gallery?.length ? "mt-4" : "")}>
+                            {getVideoEmbedUrl(active.video) ? (
+                              <div className="aspect-video w-full">
+                                <iframe
+                                  src={getVideoEmbedUrl(active.video)!}
+                                  title={active.name}
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                  className="h-full w-full"
+                                />
+                              </div>
+                            ) : (
+                              <video src={active.video} controls className="w-full" />
+                            )}
+                          </div>
+                        ) : null}
+
+                        {isAdmin ? (
+                          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/50 pt-4">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleAddImage(file);
+                                e.target.value = "";
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={galleryBusy}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-foreground/60 transition hover:text-primary disabled:opacity-50"
+                            >
+                              {galleryBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
+                              Dodaj zdjęcie
+                            </button>
+                            <div className="flex min-w-[220px] flex-1 items-center gap-2">
+                              <input
+                                value={videoInput}
+                                onChange={(e) => setVideoInput(e.target.value)}
+                                placeholder="Link do wideo (YouTube, Vimeo, .mp4)"
+                                className={cn(editInputClass, "flex-1 text-xs")}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void handleSaveVideo()}
+                                disabled={galleryBusy}
+                                className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:shadow-glow disabled:opacity-60"
+                              >
+                                Zapisz
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                        {galleryMsg ? <p className="mt-2 text-[11px] leading-relaxed text-foreground/50">{galleryMsg}</p> : null}
+                      </div>
+                    </Reveal>
+                  ) : null}
 
                   {active.casePanel ? (
                     <Reveal delay={80} distance={24}>
