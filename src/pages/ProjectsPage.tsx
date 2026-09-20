@@ -1,17 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Layers, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import { lazy, Suspense } from "react";
 const InteractiveStars = lazy(() => import("@/components/InteractiveStars"));
 import Reveal from "@/components/Reveal";
 import SplitText from "@/components/SplitText";
-import CaseStudyPanel, { type CaseData } from "@/components/CaseStudyPanel";
+import ProjectShowcase, { type ShowcaseItem } from "@/components/ProjectShowcase";
+import type { CaseData } from "@/components/CaseStudyPanel";
+import projectOverrides from "@/content/project-overrides.json";
 
 import { LanguageSwitcher, useI18n } from "@/i18n/I18nProvider";
 import { paths } from "@/lib/i18n-routes";
 import { usePauseOffscreen } from "@/hooks/usePauseOffscreen";
-import { cn } from "@/lib/utils";
-import { trackEvent } from "@/lib/analytics";
 import vaneImg from "@/assets/vane-screenshot.webp";
 import obsidianImg from "@/assets/obsidian.webp";
 import greenbasketImg from "@/assets/greenbasket.webp";
@@ -66,28 +65,8 @@ const MORE: Meta[] = [
   { id: "smashandco", descIndex: 8, demoUrl: "https://govodemo1.vercel.app/#", imageSrc: smashandcoImg },
 ];
 
-const NUMBERS: Record<CardId, string> = {
-  vane: "01",
-  pelagio: "02",
-  obsidian: "03",
-  rezydencja: "04",
-  capsulent: "05",
-  miedzywarstwami: "06",
-  greenbasket: "07",
-  ridenow: "08",
-  smashandco: "09",
-};
-
-function GroupLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-5 flex items-center gap-3">
-      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-      <span className="font-mono text-[11px] uppercase tracking-[0.28em] text-foreground/45">
-        {children}
-      </span>
-    </div>
-  );
-}
+const ALL_PROJECTS: Meta[] = [...FEATURED, ...SELECTED, ...MORE];
+const CONCEPT_IDS = new Set<CardId>(["vane", "pelagio"]);
 
 const VANE_CASE: Record<string, CaseData> = {
   pl: {
@@ -444,121 +423,29 @@ export default function ProjectsPage() {
   const { t, lang } = useI18n();
   const p = paths(lang);
   const marqueeRef = usePauseOffscreen<HTMLDivElement>();
-  const [open, setOpen] = useState<Set<string>>(new Set());
-
 
   const cards = t.projectCards;
+  const overrides = projectOverrides as Record<
+    string,
+    Partial<Record<"pl" | "en", { name?: string; subtitle?: string; blurb?: string; tags?: string[] }>>
+  >;
 
-  const toggle = (id: CardId, name: string) => {
-    void trackEvent("project_open", { projectSlug: id, metadata: { project_name: name }, once: true });
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const demo = (meta: Meta, name: string) => (
-    <a
-      href={meta.demoUrl}
-      onClick={() =>
-        void trackEvent("demo_click", {
-          projectSlug: meta.id,
-          metadata: { project_name: name, demo_url: meta.demoUrl },
-        })
-      }
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group/demo relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_color-mix(in_oklab,var(--primary)_30%,transparent)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:shadow-[0_0_35px_color-mix(in_oklab,var(--primary)_55%,transparent)] hover:scale-[1.03] demo-shimmer"
-    >
-      <span className="relative z-10">{t.liveDemo}</span>
-      <ArrowUpRight className="relative z-10 h-3.5 w-3.5 transition duration-300 group-hover/demo:translate-x-0.5 group-hover/demo:-translate-y-0.5" />
-    </a>
-  );
-
-  const caseStudyButton = (meta: Meta, name: string, variant: "solid" | "plain" = "solid") => (
-    <button
-      type="button"
-      onClick={() => toggle(meta.id, name)}
-      className={cn(
-        "group/cs inline-flex items-center gap-2 text-sm transition",
-        variant === "solid"
-          ? "rounded-full border border-border/70 bg-background/30 px-5 py-2.5 text-foreground/60 backdrop-blur-xl hover:border-primary/40 hover:text-primary"
-          : "text-foreground/60 hover:text-primary",
-      )}
-    >
-      {t.caseStudy}
-      <ArrowRight className="h-3.5 w-3.5 transition group-hover/cs:translate-x-0.5" />
-    </button>
-  );
-
-  const details = (meta: Meta, compact?: boolean, forceOpen?: boolean) => (
-    <div
-      className={cn(
-        "grid transition-[grid-template-rows,opacity,margin] duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]",
-        forceOpen || open.has(meta.id) ? "mt-5 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-      )}
-    >
-      <div className="overflow-hidden">
-        {CASE_PANELS[meta.id] ? (
-          <CaseStudyPanel data={CASE_PANELS[meta.id]![lang] ?? CASE_PANELS[meta.id]!.en} compact={compact} />
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-foreground/40">
-                {t.caseStudy}
-              </span>
-              <div className="h-px flex-1 bg-border/40" />
-            </div>
-            <p className="whitespace-pre-line rounded-xl border border-border/40 bg-background/30 p-3 text-[11px] leading-snug text-foreground/60 transition duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">
-              {t.projects[meta.descIndex]?.description}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  /** Condensed teaser shown while a small card's overview is collapsed. */
-  const miniSummary = (meta: Meta) => {
+  const showcaseItems: ShowcaseItem[] = ALL_PROJECTS.map((meta) => {
+    const c = cards[meta.id];
     const panel = CASE_PANELS[meta.id];
-    if (!panel) return null;
-    const data = panel[lang] ?? panel.en;
-    const role = data.facts[0];
-    const tech = data.facts[1];
-    const cell = (Icon: typeof User, label: string, value: string) => (
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <Icon className="h-3 w-3 shrink-0 text-primary/70" />
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-foreground/40">{label}</span>
-        </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-foreground/60">{value}</p>
-      </div>
-    );
-    return (
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/40 pt-4">
-        {role ? cell(User, role.label, role.items.join(", ")) : null}
-        {tech ? cell(Layers, tech.label, tech.items.join(", ")) : null}
-      </div>
-    );
-
-  };
-
-
-  const tagRow = (tags: readonly string[]) => (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="rounded-full border border-border/70 bg-foreground/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-foreground/50 transition duration-500 group-hover:border-primary/25 group-hover:text-foreground/70"
-        >
-          {tag}
-        </span>
-      ))}
-    </div>
-  );
-
+    const override = overrides[meta.id]?.[lang];
+    return {
+      id: meta.id,
+      imageSrc: meta.imageSrc,
+      name: override?.name || c.name,
+      subtitle: override?.subtitle || c.subtitle,
+      blurb: override?.blurb || c.blurb,
+      tags: override?.tags?.length ? override.tags : c.tags,
+      demoUrl: meta.demoUrl,
+      isConcept: CONCEPT_IDS.has(meta.id),
+      casePanel: panel ? (panel[lang] ?? panel.en) : undefined,
+    };
+  });
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -598,149 +485,21 @@ export default function ProjectsPage() {
           </p>
         </div>
 
-        {/* Featured */}
-        <GroupLabel>{t.projectsGroupFeatured}</GroupLabel>
-        <div className="mb-16 flex flex-col gap-6">
-          {FEATURED.map((meta, i) => {
-            const c = cards[meta.id];
-            return (
-              <Reveal key={meta.id} delay={i * 90} distance={28}>
-                <article className="group grid grid-cols-1 overflow-hidden rounded-3xl border border-border bg-card/40 backdrop-blur-xl transition duration-500 hover:border-primary/40 hover:shadow-glow lg:grid-cols-2">
-                  <div className="flex flex-col p-7 md:p-9">
-                    <span className="font-mono text-sm text-primary/70">{NUMBERS[meta.id]}</span>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <h2 className="font-display text-2xl uppercase tracking-tight transition duration-300 group-hover:text-primary md:text-3xl">
-                        {c.name}
-                      </h2>
-                      <span className="rounded-full border border-primary/40 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-primary/80">
-                        {t.conceptProject}
-                      </span>
-                    </div>
-                    <p className="mt-4 text-sm text-foreground/75">{c.subtitle}</p>
-                    <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-foreground/55">
-                      {c.blurb}
-                    </p>
-                    <div className="mt-6">{tagRow(c.tags)}</div>
-                    <div className="mt-7 flex flex-wrap items-center gap-6">
-                      {caseStudyButton(meta, c.name)}
-                      {demo(meta, c.name)}
-                    </div>
-                    {CASE_PANELS[meta.id] ? null : details(meta)}
-
-                  </div>
-                  <div className="relative min-h-[240px] overflow-hidden border-t border-border lg:border-l lg:border-t-0">
-                    <img
-                      src={meta.imageSrc}
-                      alt={c.name}
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  {CASE_PANELS[meta.id] ? (
-                    <div
-                      className={cn(
-                        "transition-[padding] duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] lg:col-span-2",
-                        open.has(meta.id) ? "px-7 pb-7 md:px-9 md:pb-9" : "px-7 pb-0 md:px-9",
-                      )}
-                    >
-                      {details(meta, false)}
-                    </div>
-                  ) : null}
-
-                </article>
-              </Reveal>
-            );
-          })}
+        {/* Showcase */}
+        <div className="mb-16">
+          <ProjectShowcase
+            items={showcaseItems}
+            lang={lang}
+            labels={{
+              liveDemo: t.liveDemo,
+              caseStudy: t.caseStudy,
+              conceptProject: t.conceptProject,
+              close: t.projectsClose,
+              dragHint: t.projectsDragHint,
+              viewProject: t.projectsViewProject,
+            }}
+          />
         </div>
-
-        {/* Selected */}
-        <GroupLabel>{t.projectsGroupSelected}</GroupLabel>
-        <div className="mb-16 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SELECTED.map((meta, i) => {
-            const c = cards[meta.id];
-            return (
-              <Reveal key={meta.id} delay={i * 80} distance={26} className="h-full">
-                <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl transition duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] hover:-translate-y-1 hover:border-primary/40 hover:bg-card/60 hover:shadow-glow">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={meta.imageSrc}
-                      alt={c.name}
-                      className="aspect-[16/11] w-full object-cover transition duration-[900ms] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-[1.05]"
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/90 via-card/10 to-transparent" />
-                    <span className="absolute left-4 top-4 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 font-mono text-[10px] tracking-[0.18em] text-primary/80 backdrop-blur-md">
-                      {NUMBERS[meta.id]}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="font-display text-lg leading-snug tracking-tight transition duration-300 group-hover:text-primary">
-                      {c.name}
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-foreground/55">{c.blurb}</p>
-                    <div className="mt-4">{tagRow(c.tags)}</div>
-                    {miniSummary(meta)}
-                    {details(meta, true)}
-                    <div className="h-5" />
-                    <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-                      {caseStudyButton(meta, c.name, "plain")}
-                      {demo(meta, c.name)}
-                    </div>
-
-                  </div>
-                </article>
-              </Reveal>
-            );
-          })}
-        </div>
-
-        {/* More */}
-        <GroupLabel>{t.projectsGroupMore}</GroupLabel>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {MORE.map((meta, i) => {
-            const c = cards[meta.id];
-            return (
-              <Reveal key={meta.id} delay={i * 80} distance={26} className="h-full">
-                <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-xl transition duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] hover:-translate-y-1 hover:border-primary/40 hover:bg-card/60 hover:shadow-glow">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={meta.imageSrc}
-                      alt={c.name}
-                      className="aspect-[16/10] w-full object-cover transition duration-[900ms] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-[1.05]"
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/90 via-card/10 to-transparent" />
-                    <span className="absolute left-4 top-4 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 font-mono text-[10px] tracking-[0.18em] text-primary/80 backdrop-blur-md">
-                      {NUMBERS[meta.id]}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="font-display text-lg leading-snug tracking-tight transition duration-300 group-hover:text-primary">
-                      {c.name}
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-foreground/55">{c.blurb}</p>
-                    <div className="mt-4">{tagRow(c.tags)}</div>
-                    {miniSummary(meta)}
-                    {details(meta, true)}
-                    <div className="h-5" />
-                    <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-                      {caseStudyButton(meta, c.name, "plain")}
-                      {demo(meta, c.name)}
-                    </div>
-
-                  </div>
-                </article>
-              </Reveal>
-            );
-          })}
-        </div>
-
 
         {/* Bottom CTA */}
         <Reveal delay={120} distance={28}>

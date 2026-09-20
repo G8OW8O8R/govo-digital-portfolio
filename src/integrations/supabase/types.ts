@@ -185,6 +185,33 @@ export type Database = {
         }
         Relationships: []
       }
+      project_content: {
+        Row: {
+          blurb: string | null
+          name: string | null
+          slug: string
+          subtitle: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          blurb?: string | null
+          name?: string | null
+          slug: string
+          subtitle?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          blurb?: string | null
+          name?: string | null
+          slug?: string
+          subtitle?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

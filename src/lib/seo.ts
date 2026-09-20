@@ -45,7 +45,7 @@ export function seoHead(opts: {
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:image:alt", content: siteConfig.brand },
-      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:type", content: "image/jpeg" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: description },
