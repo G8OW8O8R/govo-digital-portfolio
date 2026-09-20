@@ -384,6 +384,7 @@ export type EventName =
   | "contact_form_submit"
   | "process_open"
   | "navigation_click"
+  | "social_click"
   | "cv_download"
   | `scroll_${number}`;
 

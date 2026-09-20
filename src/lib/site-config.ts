@@ -11,6 +11,7 @@ export const siteConfig = {
   location: "Brwinów, Poland",
   age: "20 years old",
   githubUsername: "G8OW8O8R",
+  linkedinUrl: "https://www.linkedin.com/in/piotrgoworek/",
   formEndpoint: "https://formsubmit.co/ajax/govodigital@proton.me",
   siteUrl: "https://govodigital.vercel.app",
   defaultMeta: {

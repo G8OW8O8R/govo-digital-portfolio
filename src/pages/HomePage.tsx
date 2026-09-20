@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { trackEvent } from "@/lib/analytics";
-import { ArrowRight, Smile, Briefcase, Layers, AtSign, Workflow, Newspaper } from "lucide-react";
+import { ArrowRight, Smile, Briefcase, Layers, AtSign, Workflow, Newspaper, Linkedin, Github } from "lucide-react";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import avatarUrl from "@/assets/avatar.webp";
 import { usePauseOffscreen } from "@/hooks/usePauseOffscreen";
@@ -8,6 +8,7 @@ import ProtectedImage from "@/components/ProtectedImage";
 import { LanguageSwitcher, useI18n } from "@/i18n/I18nProvider";
 import { paths } from "@/lib/i18n-routes";
 import { SERVICES, SERVICE_KEYS, SERVICE_SLUGS } from "@/content/services";
+import { siteConfig } from "@/lib/site-config";
 
 
 const InteractiveStars = lazy(() => import("@/components/InteractiveStars"));
@@ -162,12 +163,27 @@ export default function HomePage() {
       />
 
       <header className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 pt-5 text-xs sm:px-6 sm:pt-6">
-        <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] text-foreground/60 sm:text-xs">
-          <span className="relative inline-flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-pulse-ring rounded-full bg-emerald-400" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-          </span>
-          <span className="truncate">{t.available}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <a
+            href={siteConfig.linkedinUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="LinkedIn"
+            onClick={() => void trackEvent("social_click", { metadata: { network: "linkedin" } })}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-foreground/60 transition hover:border-primary/50 hover:text-primary"
+          >
+            <Linkedin className="h-[15px] w-[15px]" strokeWidth={1.75} />
+          </a>
+          <a
+            href={`https://github.com/${siteConfig.githubUsername}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            onClick={() => void trackEvent("social_click", { metadata: { network: "github" } })}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-foreground/60 transition hover:border-primary/50 hover:text-primary"
+          >
+            <Github className="h-[15px] w-[15px]" strokeWidth={1.75} />
+          </a>
         </div>
         <LanguageSwitcher />
       </header>

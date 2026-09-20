@@ -3,7 +3,6 @@ export type Lang = "en" | "pl";
 export const translations = {
   en: {
     // Index
-    available: "available for work · 2026",
     greeting: "HEY — I'M OWNER OF GOVO DIGITAL",
     headlineLead: "I build beautiful",
     rotating: ["interfaces", "experiences", "interactions", "moments"],
@@ -315,7 +314,6 @@ export const translations = {
     contactBriefCtaBody: "No problem. Just a few sentences about your company and what you'd like to improve.",
   },
   pl: {
-    available: "gotowy na współpracę · 2026",
     greeting: "CZEŚĆ — JESTEM TWÓRCĄ GOVO DIGITAL",
     headlineLead: "Tworzę piękne",
     rotating: ["interfejsy", "witryny", "interakcje", "projekty"],
